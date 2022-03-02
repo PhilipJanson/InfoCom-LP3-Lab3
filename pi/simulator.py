@@ -43,6 +43,10 @@ def run(id, current_coords, from_coords, to_coords, SERVER_URL):
     
     drone_coords = current_coords
 
+
+    pygame.mixer.music.load("space-odyssey.mp3")
+    pygame.mixer.music.play()
+
     # Move from current_coodrs to from_coords
     d_long, d_la =  getMovement(drone_coords, from_coords)
     while distance(drone_coords, from_coords) > 0.0002:
@@ -50,36 +54,43 @@ def run(id, current_coords, from_coords, to_coords, SERVER_URL):
         send_location(SERVER_URL, id=id, drone_coords=drone_coords, status='busy')
         
     send_location(SERVER_URL, id=id, drone_coords=drone_coords, status='waiting')
-    loop = True
     
-    pygame.mixer.music.load("doorbell.mp3")
-    pygame.mixer.music.play()
-
+    pygame.mixer.music.stop()
+    doorbell = pygame.mixer.Sound("doorbell-1.wav")
+    doorbell.play()
+    
+    loop = True
     while(loop):
         for event in sense.stick.get_events():
             print(event.action)
             if event.action == "pressed" and event.direction == "up":
                 loop = False
     
-    
+    pygame.mixer.music.load("space-odyssey.mp3")
+    pygame.mixer.music.play()
+
         
     # Move from from_coodrs to to_coords
     d_long, d_la =  getMovement(drone_coords, to_coords)
     while distance(drone_coords, to_coords) > 0.0002:
         drone_coords = moveDrone(drone_coords, d_long, d_la)
         send_location(SERVER_URL, id=id, drone_coords=drone_coords, status='busy')
+
     
     # Stop and update status to database
     send_location(SERVER_URL, id=id, drone_coords=drone_coords, status='idle')
    
+    pygame.mixer.music.stop()
+    doorbell.play()
+
     
     return drone_coords[0], drone_coords[1]
    
 if __name__ == "__main__":
     
     pygame.mixer.init()
-    pygame.mixer.music.load("coin.wav")
-    pygame.mixer.music.play()
+    coin = pygame.mixer.Sound("coin.wav")
+    coin.play()
 
 
     # Fill in the IP address of server, in order to location of the drone to the SERVER
