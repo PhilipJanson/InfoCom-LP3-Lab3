@@ -1,9 +1,11 @@
 import math
 import requests
 import argparse
-
+from sense_hat import SenseHat
+import pygame
+sense = SenseHat()
 def getMovement(src, dst):
-    speed = 0.00001
+    speed = 0.00003
     dst_x, dst_y = dst
     x, y = src
     direction = math.sqrt((dst_x - x)**2 + (dst_y - y)**2)
@@ -18,6 +20,13 @@ def moveDrone(src, d_long, d_la):
     return (x, y)
 
 def send_location(SERVER_URL, id, drone_coords, status):
+    if(status == 'idle'):
+        sense.show_letter("I", (0,255,0))
+    elif(status == 'busy'):
+        sense.show_letter("B", (255,0,0))
+    elif(status == 'waiting'):
+        sense.show_letter("W", (255,230,30))
+
     with requests.Session() as session:
         drone_info = {'id': id,
                       'longitude': drone_coords[0],
@@ -31,6 +40,7 @@ def distance(_fr, _to):
     return _dist
         
 def run(id, current_coords, from_coords, to_coords, SERVER_URL):
+    
     drone_coords = current_coords
 
     # Move from current_coodrs to from_coords
@@ -38,7 +48,21 @@ def run(id, current_coords, from_coords, to_coords, SERVER_URL):
     while distance(drone_coords, from_coords) > 0.0002:
         drone_coords = moveDrone(drone_coords, d_long, d_la)
         send_location(SERVER_URL, id=id, drone_coords=drone_coords, status='busy')
+        
+    send_location(SERVER_URL, id=id, drone_coords=drone_coords, status='waiting')
+    loop = True
+    
+    pygame.mixer.music.load("doorbell.mp3")
+    pygame.mixer.music.play()
 
+    while(loop):
+        for event in sense.stick.get_events():
+            print(event.action)
+            if event.action == "pressed" and event.direction == "up":
+                loop = False
+    
+    
+        
     # Move from from_coodrs to to_coords
     d_long, d_la =  getMovement(drone_coords, to_coords)
     while distance(drone_coords, to_coords) > 0.0002:
@@ -47,13 +71,20 @@ def run(id, current_coords, from_coords, to_coords, SERVER_URL):
     
     # Stop and update status to database
     send_location(SERVER_URL, id=id, drone_coords=drone_coords, status='idle')
+   
     
     return drone_coords[0], drone_coords[1]
    
 if __name__ == "__main__":
+    
+    pygame.mixer.init()
+    pygame.mixer.music.load("coin.wav")
+    pygame.mixer.music.play()
+
+
     # Fill in the IP address of server, in order to location of the drone to the SERVER
     #===================================================================
-    SERVER_URL = "http://SERVER_IP:PORT/drone"
+    SERVER_URL = "http://192.168.1.5:5001/drone"
     #===================================================================
 
     parser = argparse.ArgumentParser()
@@ -75,3 +106,8 @@ if __name__ == "__main__":
     drone_long, drone_lat = run(args.id ,current_coords, from_coords, to_coords, SERVER_URL)
     # drone_long and drone_lat is the final location when drlivery is completed, find a way save the value, and use it for the initial coordinates of next delivery
     #=============================================================================
+
+    file = open("coords.txt", "w")
+    temp = str(drone_long) + "\n" + str(drone_lat) + "\n"
+    file.writelines(temp)
+    file.close()
